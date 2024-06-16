@@ -1,6 +1,7 @@
 import pyvisa
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 class LeCroyOscilloscope:
     def __init__(self, ip_address):
@@ -13,7 +14,18 @@ class LeCroyOscilloscope:
 
     def send_command(self, command):
         self.instrument.write(command)
-
+        
+    def ask_cal(self):
+        self.send_command("*CAL?")
+        print('Wait for a complete calibration before measurement ... : \n', end="\r")
+        # Add a timer to let the scope make is complete calibration and let the waveform for settling time
+        t = 7
+        while t:
+            time.sleep(1)
+            t -= 1
+            print('\r{}'.format(t), end='', flush=True)
+        print("\nAutocal complete !")
+        
     def query(self, command):
         return self.instrument.query(command)
 
@@ -80,6 +92,8 @@ if __name__ == "__main__":
     # try:
     osc.connect()
     channel = 1  # Canal à lire 
+    
+    osc.ask_cal()
 
     waveform, infos = osc.get_waveform(channel)
     osc.close()
@@ -109,8 +123,13 @@ if __name__ == "__main__":
     
     # ------------------------------------- Compute values from the Waveform -#
     
-    print("Peak to Peak (V) : ", np.ptp(waveform))
-    print("Peak to Peak (V) : ", np.sqrt(np.mean(waveform**2)))
+    PeakToPeak = np.ptp(waveform)
+    RMS = np.sqrt(np.mean(waveform**2))
+    
+    print("Peak to Peak (V) : ", PeakToPeak)
+    print("Peak to Peak (mV) : {:.3f}".format((PeakToPeak * 1000)))
+    print("Peak to Peak (V) : ", RMS)
+    print("Peak to Peak (mV) : {:.3f}".format((RMS * 1000)))
     # except Exception as e:
     #     print(f"Une erreur s'est produite : {e}")
     #     osc.close()
