@@ -1,5 +1,4 @@
 import pyvisa
-import time
 
 class SiglentSDL1020:
     def __init__(self, ip_address):
@@ -37,33 +36,3 @@ class SiglentSDL1020:
         if self.instrument:
             self.instrument.close()
 
-if __name__ == "__main__":
-    sdl_ip = "192.168.1.179"  # Remplacez par l'adresse IP réelle de votre SDL1020
-    sdl = SiglentSDL1020(sdl_ip)
-
-    try:
-        sdl.connect()
-        
-        # Configuration des paramètres de test
-        # sdl.set_voltage(12.0)  # Définit la tension à 12V
-        sdl.set_current(0.5)   # Définit le courant à 1A
-        sdl.enable_output(True) # Active la sortie
-
-        # Attendre quelques secondes pour stabilisation
-        time.sleep(5)
-        
-        # Mesurer les valeurs de tension et de courant
-        voltage = sdl.measure_voltage()
-        current = sdl.measure_current()
-        
-        print(f"Mesure de la tension : {voltage} V")
-        print(f"Mesure du courant : {current} A")
-
-        # # Désactiver la sortie
-        sdl.enable_output(False)
-
-    except Exception as e:
-        print(f"Une erreur s'est produite : {e}")
-
-    finally:
-        sdl.close()
