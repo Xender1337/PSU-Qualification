@@ -36,3 +36,18 @@ class SiglentSDL1020:
         if self.instrument:
             self.instrument.close()
 
+    # # Mesurer les valeurs de tension et de courant
+    # voltage = sdl.measure_voltage()
+    # current = sdl.measure_current()
+    
+    # print(f"Mesure de la tension : {voltage} V")
+    # print(f"Mesure du courant : {current} A")
+    
+    
+    # Configuration des paramètres de test
+    # sdl.set_voltage(12.0)  # Définit la tension à 12V
+    # sdl.set_current(0.5)   # Définit le courant à 1A
+    # sdl.enable_output(True) # Active la sortie
+    
+    #    # # Désactiver la sortie
+    # sdl.enable_output(False)
