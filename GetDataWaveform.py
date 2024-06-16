@@ -7,6 +7,7 @@ class LeCroyOscilloscope:
         self.ip_address = ip_address
         self.resource_manager = pyvisa.ResourceManager('@py')
         self.instrument = None
+        self.previous_state_before_force = None
 
     def connect(self):
         self.instrument = self.resource_manager.open_resource(f'TCPIP0::{self.ip_address}::inst0::INSTR')
@@ -15,17 +16,30 @@ class LeCroyOscilloscope:
         self.instrument.write(command)
         
     def arm(self):
-        self.send_command('ARM')
+        self.send_command('*TRG')
         
     def force(self):
+        self.previous_state_before_force = self.get_current_trig_sel()
+        # print("Trig was forced by changing the trig selectection. Previous state was : ", self.previous_state_before_force)
         self.send_command('TRSE EDGE,SR,LINE,HT,OFF')
+        time.sleep(0.2)
         self.arm()
+        time.sleep(2)
+        
+    def restore_previous_trig_sel(self):
+        self.set_trig_sel(self.previous_state_before_force)
+        
+    def get_current_trig_sel(self):
+        return self.query('TRIG_SELECT?')
+        
+    def set_trig_sel(self, trig_sel):
+        return self.send_command(trig_sel)
         
     def ask_cal(self):
         self.send_command("*CAL?")
         print('Wait for a complete calibration before measurement ...\n', end="\r")
         # Add a timer to let the scope make is complete calibration and let the waveform for settling time
-        t = 7
+        t = 8
         while t:
             time.sleep(1)
             t -= 1
@@ -55,7 +69,7 @@ class LeCroyOscilloscope:
         
         result = list()
         for a_value in response:
-            result.append(a_value * infos["vertical_gain"])
+            result.append((a_value * infos["vertical_gain"]) - infos["vertical_offset"])
         # print(response)
         # print(result)
         # print(len(result))
@@ -77,6 +91,14 @@ class LeCroyOscilloscope:
                 waveform_infos["total_pnt"] = float(line.split(':')[1].strip())
             if "VERTICAL_GAIN" in line:
                 waveform_infos["vertical_gain"] = float(line.split(':')[1].strip())
+            if "MAX_VALUE" in line:
+                waveform_infos["max_value"] = float(line.split(':')[1].strip())
+            if "MIN_VALUE" in line:
+                waveform_infos["min_value"] = float(line.split(':')[1].strip())
+            if "HORIZ_OFFSET" in line:
+                waveform_infos["horiz_offset"] = float(line.split(':')[1].strip())
+            if "VERTICAL_OFFSET" in line:
+                waveform_infos["vertical_offset"] = float(line.split(':')[1].strip())
         # print(preamble)
         return waveform_infos
 
@@ -84,3 +106,4 @@ class LeCroyOscilloscope:
     def close(self):
         if self.instrument:
             self.instrument.close()
+

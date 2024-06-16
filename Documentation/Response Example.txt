@@ -12,19 +12,19 @@ RES_DESC1          : 0
 TRIGTIME_ARRAY     : 0                  
 RIS_TIME_ARRAY     : 0                  
 RES_ARRAY1         : 0                  
-WAVE_ARRAY_1       : 20000002           
+WAVE_ARRAY_1       : 502                
 WAVE_ARRAY_2       : 0                  
 RES_ARRAY2         : 0                  
 RES_ARRAY3         : 0                  
 INSTRUMENT_NAME    : LECROYWR64Xi-A-N   
 INSTRUMENT_NUMBER  : 0                  
 TRACE_LABEL        :                    
-RESERVED1          : 11522              
-RESERVED2          : 305                
-WAVE_ARRAY_COUNT   : 20000002           
-PNTS_PER_SCREEN    : 20000000           
+RESERVED1          : 502                
+RESERVED2          : 0                  
+WAVE_ARRAY_COUNT   : 502                
+PNTS_PER_SCREEN    : 500                
 FIRST_VALID_PNT    : 0                  
-LAST_VALID_PNT     : 20000001           
+LAST_VALID_PNT     : 501                
 FIRST_POINT        : 0                  
 SPARSING_FACTOR    : 1                  
 SEGMENT_INDEX      : 0                  
@@ -32,19 +32,19 @@ SUBARRAY_COUNT     : 1
 SWEEPS_PER_ACQ     : 1                  
 POINTS_PER_PAIR    : 0                  
 PAIR_OFFSET        : 0                  
-VERTICAL_GAIN      : 6.6419e-03         
+VERTICAL_GAIN      : 1.6605e-03         
 VERTICAL_OFFSET    : -0.0000e+00        
 MAX_VALUE          : 1.1900e+02         
 MIN_VALUE          : -1.2000e+02        
 NOMINAL_BITS       : 8                  
 NOM_SUBARRAY_COUNT : 1                  
-HORIZ_INTERVAL     : 5.0000e-10         
-HORIZ_OFFSET       : -2.80000025e-03    
+HORIZ_INTERVAL     : 2.0000e-05         
+HORIZ_OFFSET       : -2.81535457e-03    
 PIXEL_OFFSET       : -2.80000000e-03    
 VERTUNIT           : Unit Name = V
 HORUNIT            : Unit Name = S
 HORIZ_UNCERTAINTY  : 1.0000e-12         
-TRIGGER_TIME       : Date = JUN 16, 2024, Time =  7:55:12.989815307
+TRIGGER_TIME       : Date = JUN 16, 2024, Time = 12: 7:31.161070943
 ACQ_DURATION       : 0.0000e+00         
 RECORD_TYPE        : single_sweep       
 PROCESSING_DONE    : no_processing      
@@ -53,9 +53,9 @@ RIS_SWEEPS         : 1
 TIMEBASE           : 1_ms/div           
 VERT_COUPLING      : AC_1MOhm           
 PROBE_ATT          : 1.0000e+01         
-FIXED_VERT_GAIN    : 20_mV/div          
+FIXED_VERT_GAIN    : 5_mV/div           
 BANDWIDTH_LIMIT    : off                
 VERTICAL_VERNIER   : 1.0000e+00         
 ACQ_VERT_OFFSET    : 0.0000e+00         
-WAVE_SOURCE        : CHANNEL_1          
+WAVE_SOURCE        : CHANNEL_1    
 "
