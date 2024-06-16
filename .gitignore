@@ -1,2 +1,5 @@
 
 *.pyc
+*.pyc
+__pycache__/GetDataWaveform.cpython-311.pyc
+__pycache__/GetDataWaveform.cpython-311.pyc
