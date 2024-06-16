@@ -1,24 +1,46 @@
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from GetDataWaveform import LeCroyOscilloscope
+from Load import SiglentSDL1020
 
 if __name__ == "__main__":
     osc_ip = "192.168.137.49"  # Remplacez par l'adresse IP réelle de votre oscilloscope LeCroy
     osc = LeCroyOscilloscope(osc_ip)
 
+    sdl_ip = "192.168.1.179"  # Remplacez par l'adresse IP réelle de votre SDL1020
+    sdl = SiglentSDL1020(sdl_ip)
 
     # ------------------------------------- Waveform acquisition -------------#
 
     # try:
     osc.connect()
+    sdl.connect()
     channel = 1  # Canal à lire 
     
     osc.ask_cal()
+    
+    osc.arm()
+    
+    time.sleep(2)
 
+    # Configuration des paramètres de test
+    # sdl.set_voltage(12.0)  # Définit la tension à 12V
+    sdl.set_current(0.5)   # Définit le courant à 1A
+
+    sdl.enable_output(True) # Active la sortie
+    
+    time.sleep(2)
+    
     waveform, infos = osc.get_waveform(channel)
     osc.close()
 
-    
+
+# ARM
+
+    # # Désactiver la sortie
+    sdl.enable_output(False)
+
     # ------------------------------------- Display Waveform  ----------------#
     
     # Générer l'axe du temps

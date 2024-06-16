@@ -8,7 +8,7 @@ class SiglentSDL1020:
 
     def connect(self):
         self.instrument = self.resource_manager.open_resource(f'TCPIP0::{self.ip_address}::inst0::INSTR')
-        print(f"Connected to: {self.instrument.query('*IDN?')}")
+        # print(f"Connected to: {self.instrument.query('*IDN?')}")
 
     def send_command(self, command):
         self.instrument.write(command)
