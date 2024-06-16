@@ -17,6 +17,10 @@ class LeCroyOscilloscope:
     def arm(self):
         self.send_command('ARM')
         
+    def force(self):
+        self.send_command('TRSE EDGE,SR,LINE,HT,OFF')
+        self.arm()
+        
     def ask_cal(self):
         self.send_command("*CAL?")
         print('Wait for a complete calibration before measurement ...\n', end="\r")
