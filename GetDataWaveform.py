@@ -19,7 +19,7 @@ class LeCroyOscilloscope:
         
     def ask_cal(self):
         self.send_command("*CAL?")
-        print('Wait for a complete calibration before measurement ... : \n', end="\r")
+        print('Wait for a complete calibration before measurement ...\n', end="\r")
         # Add a timer to let the scope make is complete calibration and let the waveform for settling time
         t = 7
         while t:

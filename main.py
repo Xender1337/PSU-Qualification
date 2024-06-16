@@ -18,7 +18,10 @@ if __name__ == "__main__":
     sdl.connect()
     channel = 1  # Canal à lire 
     
-    osc.ask_cal()
+    # Choose to ask an internal cal or not
+    want_cal = input('Do you want to proceed a cal of the scope ? (YES / NO, y/n) : ')
+    if "y" in want_cal or "YES" in want_cal :
+        osc.ask_cal()
     
     osc.arm()
     
@@ -35,9 +38,6 @@ if __name__ == "__main__":
     waveform, infos = osc.get_waveform(channel)
     osc.close()
 
-
-# ARM
-
     # # Désactiver la sortie
     sdl.enable_output(False)
 
@@ -47,19 +47,24 @@ if __name__ == "__main__":
     time_axis = np.arange(len(waveform)) * infos["time_per_point"]
     
     fig, ax = plt.subplots()
-    ax.plot(time_axis, waveform)
+    ax.plot(time_axis, waveform, 'r')
     ax.grid(True, linestyle='-.')
-    ax.tick_params(labelcolor='r', labelsize='medium', width=3)
+    
+    # Set the params fonts, colors, size
+    ax.tick_params(labelcolor='b', labelsize='medium', width=3)
+    
+    # Delimit the horizontal axis to display properly the result plot 
     ax.set_xlim(0, infos["time_per_point"]*infos["total_pnt"])
     
-    # plt.plot(time_axis, waveform)
+    # Add to the plot the X & Y axis key name (Time and Voltage)
     plt.xlabel('Temps (s)')
     plt.ylabel('Tension (V)')
-    # plt.title(f'Courbe du canal {channel}')
-    # plt.grid(True, linestyle='--', which='both', axis='both', color='gray', alpha=0.5)
     
+    # Set the expected resolution of the plot
     plt.rcParams['figure.dpi'] = 300
     plt.rcParams['savefig.dpi'] = 300
+    
+    # Display the result
     plt.show()
     
     
@@ -72,6 +77,3 @@ if __name__ == "__main__":
     print("Peak to Peak (mV) : {:.3f}".format((PeakToPeak * 1000)))
     print("Peak to Peak (V) : ", RMS)
     print("Peak to Peak (mV) : {:.3f}".format((RMS * 1000)))
-    # except Exception as e:
-    #     print(f"Une erreur s'est produite : {e}")
-    #     osc.close()
