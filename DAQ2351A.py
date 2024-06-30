@@ -129,6 +129,16 @@ if __name__ == "__main__":
                 print(values.size)
                 print(time.time() - next_frame)
                 print(end)  
+                
+                  # Plot the values
+                plt.figure(figsize=(10, 5))
+                plt.plot(values, marker='o', linestyle='-')
+                plt.title('Decimal Values')
+                plt.xlabel('Index')
+                plt.ylabel('Value')
+                plt.grid(True)
+                plt.show()
+                
         except KeyboardInterrupt:
             dac.send_command('STOP')
             dac.close()
