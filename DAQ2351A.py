@@ -75,10 +75,11 @@ class KeysightDAC:
             
     #         index += 2
             
-    def convert_raw_values(self, raw_values):
+    def convert_raw_values(self, raw_values, scale):
         byte_nbr = int(raw_values[2:10].decode())  # Get the number of bytes
         index = 10  # Start the index at 10
-    
+        decimal_values = [] # Initialize an empty list to store the decimal values
+        
         while index < 10 + byte_nbr:
             # Combine the two bytes, reversing their order
             combined_value = (raw_values[index + 1] << 8) | raw_values[index]
@@ -86,12 +87,16 @@ class KeysightDAC:
             # Check the sign bit (most significant bit)
             if combined_value & 0x8000 == 0:
                 # Positive value
-                decimal_value = ((combined_value / 65536) + 0.5) * 10
+                decimal_value = ((combined_value / 65536) + 0.5) * scale
             else:
                 # Negative value, use only the lower 15 bits
-                decimal_value = ((combined_value & 0x7FFF) / 65536) * 10
+                decimal_value = ((combined_value & 0x7FFF) / 65536) * scale
+                
+            decimal_values.append(decimal_value)  # Store the decimal value in the list
             
             index += 2
+            
+        return np.array(decimal_values)  # Convert the list to a NumPy array and return it
 
 if __name__ == "__main__":
     usb_address = "USB0::0x0957::0x0F18::TW50200512::0::INSTR"  # Remplacez par l'adresse USB réelle de votre DAC
@@ -114,7 +119,8 @@ if __name__ == "__main__":
         print(dac.query('ROUT:CHAN:POL? (@101)'))
         time.sleep(0.5)
         dac.send_command('ROUT:CHAN:RANG 10,(@101)') # define voltage range @+/-5V
-        print(dac.query('ROUT:CHAN:RANG? (@101)'))
+        scale = dac.query('ROUT:CHAN:RANG? (@101)')
+        print(scale)
         time.sleep(0.5)
         dac.send_command('RUN')
         status = dac.query('WAV:STAT?')
@@ -133,9 +139,9 @@ if __name__ == "__main__":
         now = time.time()
         dac.send_command('WAV:DATA?')
         result = dac.read_raw()
-        values = dac.convert_raw_values(result)
+        values = dac.convert_raw_values(result, int(scale))
         end = time.time() - now
-        # print(values)
+        print(values)
         print(end)
         
         # try:
