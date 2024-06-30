@@ -2,6 +2,8 @@ import pyvisa
 import bitstring
 import time
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 class KeysightDAC:
     def __init__(self, usb_address):
@@ -41,42 +43,9 @@ class KeysightDAC:
         if self.instrument:
             self.instrument.close()
             
-    # def convert_raw_values(self, raw_values):
-    #     byte_nbr = int(raw_values[2:10].decode()) # get the nuber of byte
-    #     index = 10 # start the index at 10
-        
-    #     while 10 + byte_nbr > index:
-    #         if index == byte_nbr:
-    #             break
-    #         bit_value = bitstring.BitArray(raw_values[index + 1: index + 2] + raw_values[index: index + 1]).bin
-    #         print(bit_value)
-            
-    #         if bit_value[0:1] == '0':
-    #             decimal_value = ((((int(bit_value, 2))/65536)) + 0.5) * 10
-    #             print(decimal_value)
-    #         else:
-    #             decimal_value = ((((int(bit_value[1:], 2))/65536))) * 10
-    #             print(decimal_value)
-    #         index = index + 2
-    
-    # def convert_raw_values(self, raw_values):
-    #     byte_nbr = int(raw_values[2:10].decode())  # get the number of bytes
-    #     index = 10  # start the index at 10
-    
-    #     while index < 10 + byte_nbr:
-    #         # Combine the two bytes, reversing their order and converting to a bitstring
-    #         bit_value = format((raw_values[index + 1] << 8) | raw_values[index], '016b')
-    
-    #         # Convert bitstring to decimal value
-    #         if bit_value[0] == '0':
-    #             decimal_value = ((int(bit_value, 2) / 65536) + 0.5) * 10
-    #         else:
-    #             decimal_value = (int(bit_value[1:], 2) / 65536) * 10
-            
-    #         index += 2
-            
     def convert_raw_values(self, raw_values, scale):
         byte_nbr = int(raw_values[2:10].decode())  # Get the number of bytes
+        # print(raw_values)
         index = 10  # Start the index at 10
         decimal_values = [] # Initialize an empty list to store the decimal values
         
@@ -119,11 +88,12 @@ if __name__ == "__main__":
         print(dac.query('ROUT:CHAN:POL? (@101)'))
         time.sleep(0.5)
         dac.send_command('ROUT:CHAN:RANG 10,(@101)') # define voltage range @+/-5V
-        scale = dac.query('ROUT:CHAN:RANG? (@101)')
+        scale = int(dac.query('ROUT:CHAN:RANG? (@101)'))
         print(scale)
         time.sleep(0.5)
         dac.send_command('RUN')
         status = dac.query('WAV:STAT?')
+        
         
         # if "EPTY" in status:
         #     # print("OK Ready to capture")
@@ -132,18 +102,81 @@ if __name__ == "__main__":
         #     dac.send_command('STOP')
 
 
-        while "DATA" not in status:
-            status = dac.query('WAV:STAT?')
-            
-        dac.send_command('STOP')
-        now = time.time()
-        dac.send_command('WAV:DATA?')
-        result = dac.read_raw()
-        values = dac.convert_raw_values(result, int(scale))
-        end = time.time() - now
-        print(values)
-        print(end)
+        # while "DATA" not in status:
+        #     status = dac.query('WAV:STAT?')
+        # # dac.close()
+        # dac.send_command('STOP')
+        # now = time.time()
+        # dac.send_command('WAV:DATA?')
+        # result = dac.read_raw()
+        # values = dac.convert_raw_values(result, scale)
+        # end = time.time() - now
+        # print(values)
         
+        # print(end)
+        try:
+            while True:
+                next_frame = time.time()
+                status = dac.query('WAV:STAT?')
+                while "DATA" not in status:
+                    status = dac.query('WAV:STAT?')
+                    
+                now = time.time()
+                dac.send_command('WAV:DATA?')
+                result = dac.read_raw()
+                values = dac.convert_raw_values(result, scale)
+                end = time.time() - now
+                print(values.size)
+                print(time.time() - next_frame)
+                print(end)  
+        except KeyboardInterrupt:
+            dac.send_command('STOP')
+            dac.close()
+            
+        #   # Real-time plotting setup
+        # fig, ax = plt.subplots(figsize=(10, 5))
+        # ax.set_title('Decimal Values in Real-Time')
+        # ax.set_xlabel('Index')
+        # ax.set_ylabel('Value')
+        # line, = ax.plot([], [], marker='o', linestyle='-')
+        # ax.grid(True)
+        
+        # decimal_values = []
+
+        # def update(frame):
+        #     now = time.time()
+        #     dac.connect()
+        #     status = dac.query('WAV:STAT?')
+            
+        #     while "DATA" not in status:
+        #         status = dac.query('WAV:STAT?')
+                
+        #     dac.send_command('WAV:DATA?')
+        #     result = dac.read_raw()
+        #     values = dac.convert_raw_values(result, scale)
+        #     # print(values)
+        #     end = time.time() - now
+        #     print(f"Data fetched in {end:.3f} seconds")
+            
+        #     decimal_values.extend(values)
+        #     line.set_data(range(len(decimal_values)), decimal_values)
+        #     ax.relim()
+        #     ax.autoscale_view()
+        #     dac.close()
+        #     return line,
+        
+        # print(decimal_values)
+        
+        # try:
+        #     ani = FuncAnimation(fig, update, interval=1, blit=True, cache_frame_data=False)
+        #     plt.show()
+        # except KeyboardInterrupt:
+        #     dac.send_command('STOP')
+        #     dac.close()
+        # except:
+        #     dac.send_command('STOP')
+        #     dac.close()
+                
         # try:
         #     while True:
         #         # if "EPTY" in status:
@@ -200,8 +233,8 @@ if __name__ == "__main__":
         
         # print(f"Tension de sortie sur le canal 1 : {voltage} V")
 
-    except Exception as e:
-        print(f"Une erreur s'est produite : {e}")
+    # except Exception as e:
+    #     print(f"Une erreur s'est produite : {e}")
 
     finally:
         dac.close()
