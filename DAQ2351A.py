@@ -6,6 +6,31 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 class KeysightDAC:
+    ANALOG_CHANNEL_1    = 101
+    ANALOG_CHANNEL_2    = 102
+    ANALOG_CHANNEL_3    = 103
+    ANALOG_CHANNEL_4    = 104
+    ANALOG_CHANNEL_5    = 105
+    ANALOG_CHANNEL_6    = 106
+    ANALOG_CHANNEL_7    = 107
+    ANALOG_CHANNEL_8    = 108
+    ANALOG_CHANNEL_9    = 109
+    ANALOG_CHANNEL_10   = 110
+    ANALOG_CHANNEL_11   = 111
+    ANALOG_CHANNEL_12   = 112
+    ANALOG_CHANNEL_13   = 113
+    ANALOG_CHANNEL_14   = 114
+    ANALOG_CHANNEL_15   = 115
+    ANALOG_CHANNEL_16   = 116
+    
+    VOLTAGE_RANGE_10V   = 10
+    VOLTAGE_RANGE_5V    = 5
+    VOLTAGE_RANGE_2V5   = 2.5
+    VOLTAGE_RANGE_1V25  = 1.25
+    
+    CHANNEL_UNIPOLAR_MODE   = 'UNI'
+    CHANNEL_BIPOLAR_MODE    = 'BIP'
+    
     def __init__(self, usb_address):
         self.usb_address = usb_address
         self.resource_manager = pyvisa.ResourceManager()
@@ -13,7 +38,7 @@ class KeysightDAC:
 
     def connect(self):
         self.instrument = self.resource_manager.open_resource(self.usb_address)
-        print(f"Connected to: {self.instrument.query('*IDN?')}")
+        # print(f"Connected to: {self.instrument.query('*IDN?')}")
 
     def send_command(self, command):
         self.instrument.write(command)
@@ -24,20 +49,42 @@ class KeysightDAC:
     def read_raw(self):
         return self.instrument.read_raw()
 
-    def query_binary_values(self, command):
-        return self.instrument.query_binary_values(command, datatype='c', is_big_endian=False, header_fmt='ieee')
-    
-    def configure_output(self, channel, voltage):
-        self.send_command(f'SOURce{channel}:VOLTage {voltage}')
+    def configure_output(self, channel, voltage_range, polarity):
+        self.send_command(f'ROUT:CHAN:RANG {voltage_range},(@{channel})')
+        self.send_command(f'ROUT:CHAN:POL {polarity},(@{channel})')
+        
+    def configure_scanlist(self, channels):
+        command = 'ROUT:SCAN (@'
+        print(type(channels))
+        
+        if type(channels) is int:
+            command = command + '{}'.format(channels)
+            command = command + ')'
+        else:
+            for a_channel in channels:
+                command = command + '{},'.format(a_channel)
+            command = command[:-1] + ')'
+        print(command)
+        self.send_command(command)
 
     def measure_output(self, channel):
         return float(self.query(f'MEAS? (@{channel})'))
 
+    def get_sampling_rate(self):
+        return self.query("ACQuire:SRATe?")
+
     def define_sampling_rate(self, rate):
         self.send_command("ACQuire:SRATe {}".format(rate)) # rate shall be in Hertz
         
+    def get_sampling_points(self):
+        return self.query("WAV:POIN?")
+    
     def define_sample_points(self, number_of_points):
         self.send_command("WAV:POIN {}".format(number_of_points))
+        target = self.get_sampling_points()
+        
+        if int(target) != number_of_points:
+            print("Can't define the wanted number of points")
 
     def close(self):
         if self.instrument:
@@ -74,8 +121,14 @@ if __name__ == "__main__":
     try:
         dac.connect()
         print(dac.measure_output(101))
-        dac.define_sampling_rate(250000) #  500Ks/s
-        dac.define_sample_points(100000)
+        dac.define_sampling_rate(125000) #  500Ks/s
+        dac.define_sample_points(1000000)
+        
+        scanlist = [dac.ANALOG_CHANNEL_1, dac.ANALOG_CHANNEL_2]
+        dac.configure_scanlist(scanlist)
+        
+        print(dac.get_sampling_points())
+        print(dac.get_sampling_rate())
         
         # print(dac.measure_output(101))
         # dac.define_sampling_rate(250) #  500Ks/s
@@ -83,13 +136,14 @@ if __name__ == "__main__":
         # dac.send_command('DIG')
         
         time.sleep(0.5)
-        dac.send_command('ROUT:CHAN:POL UNIP,(@101)')
+        dac.configure_output(dac.ANALOG_CHANNEL_1, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
+        dac.configure_output(dac.ANALOG_CHANNEL_2, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
         # dac.send_command('VOLT:RANG 5,(@101)') # define voltage range @+/-5V
-        print(dac.query('ROUT:CHAN:POL? (@101)'))
+        print(dac.query('ROUT:SCAN?'))
+        # print(dac.query('ROUT:CHAN:POL? (@101)'))
         time.sleep(0.5)
-        dac.send_command('ROUT:CHAN:RANG 10,(@101)') # define voltage range @+/-5V
-        scale = int(dac.query('ROUT:CHAN:RANG? (@101)'))
-        print(scale)
+        # scale = int(dac.query('ROUT:CHAN:RANG? (@101)'))
+        # print(scale)
         time.sleep(0.5)
         dac.send_command('RUN')
         status = dac.query('WAV:STAT?')
@@ -115,29 +169,28 @@ if __name__ == "__main__":
         
         # print(end)
         try:
-            while True:
-                next_frame = time.time()
+            next_frame = time.time()
+            status = dac.query('WAV:STAT?')
+            while "DATA" not in status:
                 status = dac.query('WAV:STAT?')
-                while "DATA" not in status:
-                    status = dac.query('WAV:STAT?')
-                    
-                now = time.time()
-                dac.send_command('WAV:DATA?')
-                result = dac.read_raw()
-                values = dac.convert_raw_values(result, scale)
-                end = time.time() - now
-                print(values.size)
-                print(time.time() - next_frame)
-                print(end)  
                 
-                  # Plot the values
-                plt.figure(figsize=(10, 5))
-                plt.plot(values, marker='o', linestyle='-')
-                plt.title('Decimal Values')
-                plt.xlabel('Index')
-                plt.ylabel('Value')
-                plt.grid(True)
-                plt.show()
+            now = time.time()
+            dac.send_command('WAV:DATA?')
+            result = dac.read_raw()
+            values = dac.convert_raw_values(result, dac.VOLTAGE_RANGE_5V)
+            end = time.time() - now
+            print(values.size)
+            print(time.time() - next_frame)
+            print(end)  
+            
+              # Plot the values
+            plt.figure(figsize=(10, 5))
+            plt.plot(values, marker='o', linestyle='-')
+            plt.title('Decimal Values')
+            plt.xlabel('Index')
+            plt.ylabel('Value')
+            plt.grid(True)
+            plt.show()
                 
         except KeyboardInterrupt:
             dac.send_command('STOP')

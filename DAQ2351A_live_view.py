@@ -6,10 +6,29 @@ from matplotlib.animation import FuncAnimation
 from functools import partial
 
 class KeysightDAC:
+    ANALOG_CHANNEL_1    = 101
+    ANALOG_CHANNEL_2    = 102
+    ANALOG_CHANNEL_3    = 103
+    ANALOG_CHANNEL_4    = 104
+    ANALOG_CHANNEL_5    = 105
+    ANALOG_CHANNEL_6    = 106
+    ANALOG_CHANNEL_7    = 107
+    ANALOG_CHANNEL_8    = 108
+    ANALOG_CHANNEL_9    = 109
+    ANALOG_CHANNEL_10   = 110
+    ANALOG_CHANNEL_11   = 111
+    ANALOG_CHANNEL_12   = 112
+    ANALOG_CHANNEL_13   = 113
+    ANALOG_CHANNEL_14   = 114
+    ANALOG_CHANNEL_15   = 115
+    ANALOG_CHANNEL_16   = 116
+    
+    
     def __init__(self, usb_address):
         self.usb_address = usb_address
         self.resource_manager = pyvisa.ResourceManager()
         self.instrument = None
+    
 
     def connect(self):
         self.instrument = self.resource_manager.open_resource(self.usb_address)
@@ -95,7 +114,7 @@ if __name__ == "__main__":
 
     try:
         dac.connect()
-        print(dac.measure_output(101))
+        print(dac.measure_output(dac.ANALOG_CHANNEL_1))
         dac.define_sampling_rate(250000)  # 250Ks/s
         dac.define_sample_points(100000)
         
@@ -112,7 +131,7 @@ if __name__ == "__main__":
         
         while "DATA" not in status:
             status = dac.query('WAV:STAT?')
-            
+        dac.close()
         fig, ax = plt.subplots()
         line, = ax.plot([], [], lw=2)
         ax.grid()
