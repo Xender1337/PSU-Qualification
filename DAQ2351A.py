@@ -1,9 +1,7 @@
 import pyvisa
-import bitstring
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 
 class KeysightDAC:
     ANALOG_CHANNEL_1    = 101
@@ -28,13 +26,14 @@ class KeysightDAC:
     VOLTAGE_RANGE_2V5   = 2.5
     VOLTAGE_RANGE_1V25  = 1.25
     
-    CHANNEL_UNIPOLAR_MODE   = 'UNI'
+    CHANNEL_UNIPOLAR_MODE   = 'UNIP'
     CHANNEL_BIPOLAR_MODE    = 'BIP'
     
     def __init__(self, usb_address):
         self.usb_address = usb_address
         self.resource_manager = pyvisa.ResourceManager()
         self.instrument = None
+        self.scanlist = None
 
     def connect(self):
         self.instrument = self.resource_manager.open_resource(self.usb_address)
@@ -50,10 +49,14 @@ class KeysightDAC:
         return self.instrument.read_raw()
 
     def configure_output(self, channel, voltage_range, polarity):
-        self.send_command(f'ROUT:CHAN:RANG {voltage_range},(@{channel})')
-        self.send_command(f'ROUT:CHAN:POL {polarity},(@{channel})')
+        self.send_command(f'ROUT:CHAN:RANG {voltage_range}, (@{channel})')
+        self.send_command(f'ROUT:CHAN:POL {polarity}, (@{channel})')
+        
+    def get_voltage_range(self, channel):
+        return int(self.query(f"ROUT:CHAN:RANG? (@{channel})"))
         
     def configure_scanlist(self, channels):
+        self.scanlist = list()
         command = 'ROUT:SCAN (@'
         print(type(channels))
         
@@ -63,6 +66,7 @@ class KeysightDAC:
         else:
             for a_channel in channels:
                 command = command + '{},'.format(a_channel)
+                self.scanlist.append(a_channel)
             command = command[:-1] + ')'
         print(command)
         self.send_command(command)
@@ -94,25 +98,67 @@ class KeysightDAC:
         byte_nbr = int(raw_values[2:10].decode())  # Get the number of bytes
         # print(raw_values)
         index = 10  # Start the index at 10
-        decimal_values = [] # Initialize an empty list to store the decimal values
+        channel_nbr = len(self.scanlist)
         
-        while index < 10 + byte_nbr:
-            # Combine the two bytes, reversing their order
-            combined_value = (raw_values[index + 1] << 8) | raw_values[index]
-            
-            # Check the sign bit (most significant bit)
-            if combined_value & 0x8000 == 0:
-                # Positive value
-                decimal_value = ((combined_value / 65536) + 0.5) * scale
-            else:
-                # Negative value, use only the lower 15 bits
-                decimal_value = ((combined_value & 0x7FFF) / 65536) * scale
+        if channel_nbr == 1:
+            decimal_values = [] # Initialize an empty list to store the decimal values
+            while index < 10 + byte_nbr:
+                # Combine the two bytes, reversing their order
+                combined_value = (raw_values[index + 1] << 8) | raw_values[index]
                 
-            decimal_values.append(decimal_value)  # Store the decimal value in the list
+                # Check the sign bit (most significant bit)
+                if combined_value & 0x8000 == 0:
+                    # Positive value
+                    decimal_value = ((combined_value / 65536) + 0.5) * scale
+                else:
+                    # Negative value, use only the lower 15 bits
+                    decimal_value = ((combined_value & 0x7FFF) / 65536) * scale
+                    
+                decimal_values.append(decimal_value)  # Store the decimal value in the list
+                
+                index += 2
+                
+            return np.array(decimal_values)  # Convert the list to a NumPy array and return it
+        
+        else:
+            decimal_values = [] # Initialize an empty list to store the decimal values
+            channel_index = 0
+            init_index = 0
             
-            index += 2
-            
-        return np.array(decimal_values)  # Convert the list to a NumPy array and return it
+            # Create a list for each channel scanned
+            while init_index != channel_nbr:
+                decimal_values.append([])
+                init_index += 1
+                
+            while index < 10 + byte_nbr:
+                # Create n list to store the values
+                # address the first value to the first channel on the scanlist
+                
+                
+                # Combine the two bytes, reversing their order
+                combined_value = (raw_values[index + 1] << 8) | raw_values[index]
+                
+                # Check the sign bit (most significant bit)
+                if combined_value & 0x8000 == 0:
+                    # Positive value
+                    decimal_value = ((combined_value / 65536) + 0.5) * scale
+                else:
+                    # Negative value, use only the lower 15 bits
+                    decimal_value = ((combined_value & 0x7FFF) / 65536) * scale
+                    
+                decimal_values[channel_index].append(decimal_value)  # Store the decimal value in the list
+                # print(channel_index)
+                # print(channel_nbr)
+                if channel_index + 1 == channel_nbr:
+                    channel_index = 0
+                else:
+                    channel_index += 1
+                
+                
+                index += 2
+                
+            return np.array(decimal_values)  # Convert the list to a NumPy array and return it
+        
 
 if __name__ == "__main__":
     usb_address = "USB0::0x0957::0x0F18::TW50200512::0::INSTR"  # Remplacez par l'adresse USB réelle de votre DAC
@@ -122,7 +168,7 @@ if __name__ == "__main__":
         dac.connect()
         print(dac.measure_output(101))
         dac.define_sampling_rate(125000) #  500Ks/s
-        dac.define_sample_points(1000000)
+        dac.define_sample_points(10000)
         
         scanlist = [dac.ANALOG_CHANNEL_1, dac.ANALOG_CHANNEL_2]
         dac.configure_scanlist(scanlist)
@@ -138,9 +184,11 @@ if __name__ == "__main__":
         time.sleep(0.5)
         dac.configure_output(dac.ANALOG_CHANNEL_1, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
         dac.configure_output(dac.ANALOG_CHANNEL_2, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
+        
+        
         # dac.send_command('VOLT:RANG 5,(@101)') # define voltage range @+/-5V
         print(dac.query('ROUT:SCAN?'))
-        # print(dac.query('ROUT:CHAN:POL? (@101)'))
+        print(dac.query('ROUT:CHAN:POL? (@101)'))
         time.sleep(0.5)
         # scale = int(dac.query('ROUT:CHAN:RANG? (@101)'))
         # print(scale)
@@ -177,7 +225,8 @@ if __name__ == "__main__":
             now = time.time()
             dac.send_command('WAV:DATA?')
             result = dac.read_raw()
-            values = dac.convert_raw_values(result, dac.VOLTAGE_RANGE_5V)
+            values = dac.convert_raw_values(result, dac.get_voltage_range(dac.ANALOG_CHANNEL_1))
+            print(values)
             end = time.time() - now
             print(values.size)
             print(time.time() - next_frame)
@@ -185,7 +234,8 @@ if __name__ == "__main__":
             
               # Plot the values
             plt.figure(figsize=(10, 5))
-            plt.plot(values, marker='o', linestyle='-')
+            plt.plot(values[0], marker='o', linestyle='-', label = "line 1")
+            plt.plot(values[1], marker='o', linestyle='-', label = "line 2") 
             plt.title('Decimal Values')
             plt.xlabel('Index')
             plt.ylabel('Value')
