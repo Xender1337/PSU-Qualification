@@ -161,16 +161,17 @@ class KeysightDAC:
         
 
 if __name__ == "__main__":
-    usb_address = "USB0::0x0957::0x0F18::TW50200512::0::INSTR"  # Remplacez par l'adresse USB réelle de votre DAC
+    usb_address = "USB0::0x0957::0x1118::TW47031015::0::INSTR"  # Remplacez par l'adresse USB réelle de votre DAC
     dac = KeysightDAC(usb_address)
 
     try:
         dac.connect()
+        
         print(dac.measure_output(101))
-        dac.define_sampling_rate(125000) #  500Ks/s
+        dac.define_sampling_rate(12000) #  500Ks/s
         dac.define_sample_points(10000)
         
-        scanlist = [dac.ANALOG_CHANNEL_1, dac.ANALOG_CHANNEL_2]
+        scanlist = [dac.ANALOG_CHANNEL_1, dac.ANALOG_CHANNEL_2, dac.ANALOG_CHANNEL_3, dac.ANALOG_CHANNEL_4, dac.ANALOG_CHANNEL_5, dac.ANALOG_CHANNEL_6]
         dac.configure_scanlist(scanlist)
         
         print(dac.get_sampling_points())
@@ -184,11 +185,15 @@ if __name__ == "__main__":
         time.sleep(0.5)
         dac.configure_output(dac.ANALOG_CHANNEL_1, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
         dac.configure_output(dac.ANALOG_CHANNEL_2, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
+        dac.configure_output(dac.ANALOG_CHANNEL_3, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
+        dac.configure_output(dac.ANALOG_CHANNEL_4, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
+        dac.configure_output(dac.ANALOG_CHANNEL_5, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
+        dac.configure_output(dac.ANALOG_CHANNEL_6, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
+        
         
         
         # dac.send_command('VOLT:RANG 5,(@101)') # define voltage range @+/-5V
         print(dac.query('ROUT:SCAN?'))
-        print(dac.query('ROUT:CHAN:POL? (@101)'))
         time.sleep(0.5)
         # scale = int(dac.query('ROUT:CHAN:RANG? (@101)'))
         # print(scale)
@@ -226,7 +231,7 @@ if __name__ == "__main__":
             dac.send_command('WAV:DATA?')
             result = dac.read_raw()
             values = dac.convert_raw_values(result, dac.get_voltage_range(dac.ANALOG_CHANNEL_1))
-            print(values)
+            print()
             end = time.time() - now
             print(values.size)
             print(time.time() - next_frame)
@@ -234,8 +239,11 @@ if __name__ == "__main__":
             
               # Plot the values
             plt.figure(figsize=(10, 5))
-            plt.plot(values[0], marker='o', linestyle='-', label = "line 1")
-            plt.plot(values[1], marker='o', linestyle='-', label = "line 2") 
+            
+            plot_index = 0
+            while plot_index != len(values):
+                plt.plot(values[plot_index], marker='o', linestyle='-', label = "line {}".format(plot_index))
+                plot_index += 1
             plt.title('Decimal Values')
             plt.xlabel('Index')
             plt.ylabel('Value')
@@ -350,4 +358,5 @@ if __name__ == "__main__":
     #     print(f"Une erreur s'est produite : {e}")
 
     finally:
+        dac.send_command('STOP')
         dac.close()

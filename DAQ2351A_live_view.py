@@ -136,7 +136,7 @@ if __name__ == "__main__":
         line, = ax.plot([], [], lw=2)
         ax.grid()
 
-        ani = FuncAnimation(fig, partial(update_plot, dac=dac), blit=True, interval=100)
+        ani = FuncAnimation(fig, partial(update_plot, dac=dac), blit=False, interval=100)
         
         plt.show()
 

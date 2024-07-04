@@ -3,32 +3,33 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.widgets import Button
 
 class KeysightDAC:
-    ANALOG_CHANNEL_1    = 101
-    ANALOG_CHANNEL_2    = 102
-    ANALOG_CHANNEL_3    = 103
-    ANALOG_CHANNEL_4    = 104
-    ANALOG_CHANNEL_5    = 105
-    ANALOG_CHANNEL_6    = 106
-    ANALOG_CHANNEL_7    = 107
-    ANALOG_CHANNEL_8    = 108
-    ANALOG_CHANNEL_9    = 109
-    ANALOG_CHANNEL_10   = 110
-    ANALOG_CHANNEL_11   = 111
-    ANALOG_CHANNEL_12   = 112
-    ANALOG_CHANNEL_13   = 113
-    ANALOG_CHANNEL_14   = 114
-    ANALOG_CHANNEL_15   = 115
-    ANALOG_CHANNEL_16   = 116
+    ANALOG_CHANNEL_1 = 101
+    ANALOG_CHANNEL_2 = 102
+    ANALOG_CHANNEL_3 = 103
+    ANALOG_CHANNEL_4 = 104
+    ANALOG_CHANNEL_5 = 105
+    ANALOG_CHANNEL_6 = 106
+    ANALOG_CHANNEL_7 = 107
+    ANALOG_CHANNEL_8 = 108
+    ANALOG_CHANNEL_9 = 109
+    ANALOG_CHANNEL_10 = 110
+    ANALOG_CHANNEL_11 = 111
+    ANALOG_CHANNEL_12 = 112
+    ANALOG_CHANNEL_13 = 113
+    ANALOG_CHANNEL_14 = 114
+    ANALOG_CHANNEL_15 = 115
+    ANALOG_CHANNEL_16 = 116
     
-    VOLTAGE_RANGE_10V   = 10
-    VOLTAGE_RANGE_5V    = 5
-    VOLTAGE_RANGE_2V5   = 2.5
-    VOLTAGE_RANGE_1V25  = 1.25
+    VOLTAGE_RANGE_10V = 10
+    VOLTAGE_RANGE_5V = 5
+    VOLTAGE_RANGE_2V5 = 2.5
+    VOLTAGE_RANGE_1V25 = 1.25
     
-    CHANNEL_UNIPOLAR_MODE   = 'UNIP'
-    CHANNEL_BIPOLAR_MODE    = 'BIP'
+    CHANNEL_UNIPOLAR_MODE = 'UNIP'
+    CHANNEL_BIPOLAR_MODE = 'BIP'
     
     def __init__(self, usb_address):
         self.usb_address = usb_address
@@ -38,7 +39,6 @@ class KeysightDAC:
 
     def connect(self):
         self.instrument = self.resource_manager.open_resource(self.usb_address)
-        # print(f"Connected to: {self.instrument.query('*IDN?')}")
 
     def send_command(self, command):
         self.instrument.write(command)
@@ -59,33 +59,31 @@ class KeysightDAC:
     def configure_scanlist(self, channels):
         self.scanlist = list()
         command = 'ROUT:SCAN (@'
-        print(type(channels))
         
-        if type(channels) is int:
-            command = command + '{}'.format(channels)
-            command = command + ')'
+        if isinstance(channels, int):
+            command += f'{channels})'
         else:
             for a_channel in channels:
-                command = command + '{},'.format(a_channel)
+                command += f'{a_channel},'
                 self.scanlist.append(a_channel)
             command = command[:-1] + ')'
-        print(command)
+            
         self.send_command(command)
 
     def measure_output(self, channel):
         return float(self.query(f'MEAS? (@{channel})'))
 
     def get_sampling_rate(self):
-        return self.query("ACQuire:SRATe?")
+        return float(self.query("ACQuire:SRATe?"))
 
     def define_sampling_rate(self, rate):
-        self.send_command("ACQuire:SRATe {}".format(rate)) # rate shall be in Hertz
+        self.send_command(f"ACQuire:SRATe {rate}") # rate shall be in Hertz
         
     def get_sampling_points(self):
         return self.query("WAV:POIN?")
     
     def define_sample_points(self, number_of_points):
-        self.send_command("WAV:POIN {}".format(number_of_points))
+        self.send_command(f"WAV:POIN {number_of_points}")
         target = self.get_sampling_points()
         
         if int(target) != number_of_points:
@@ -97,107 +95,81 @@ class KeysightDAC:
             
     def convert_raw_values(self, raw_values, scale):
         byte_nbr = int(raw_values[2:10].decode())  # Get the number of bytes
-        # print(raw_values)
         index = 10  # Start the index at 10
         channel_nbr = len(self.scanlist)
         
         if channel_nbr == 1:
-            decimal_values = [] # Initialize an empty list to store the decimal values
+            decimal_values = []
             while index < 10 + byte_nbr:
-                # Combine the two bytes, reversing their order
                 combined_value = (raw_values[index + 1] << 8) | raw_values[index]
-                
-                # Check the sign bit (most significant bit)
                 if combined_value & 0x8000 == 0:
-                    # Positive value
                     decimal_value = ((combined_value / 65536) + 0.5) * scale
                 else:
-                    # Negative value, use only the lower 15 bits
                     decimal_value = ((combined_value & 0x7FFF) / 65536) * scale
-                    
-                decimal_values.append(decimal_value)  # Store the decimal value in the list
-                
+                decimal_values.append(decimal_value)
                 index += 2
-                
-            return np.array(decimal_values)  # Convert the list to a NumPy array and return it
+            return np.array(decimal_values)
         
         else:
-            decimal_values = [] # Initialize an empty list to store the decimal values
+            decimal_values = [[] for _ in range(channel_nbr)]
             channel_index = 0
-            init_index = 0
-            
-            # Create a list for each channel scanned
-            while init_index != channel_nbr:
-                decimal_values.append([])
-                init_index += 1
-                
             while index < 10 + byte_nbr:
-                # Create n list to store the values
-                # address the first value to the first channel on the scanlist
-                
-                
-                # Combine the two bytes, reversing their order
                 combined_value = (raw_values[index + 1] << 8) | raw_values[index]
-                
-                # Check the sign bit (most significant bit)
                 if combined_value & 0x8000 == 0:
-                    # Positive value
                     decimal_value = ((combined_value / 65536) + 0.5) * scale
                 else:
-                    # Negative value, use only the lower 15 bits
                     decimal_value = ((combined_value & 0x7FFF) / 65536) * scale
-                    
-                decimal_values[channel_index].append(decimal_value)  # Store the decimal value in the list
-                # print(channel_index)
-                # print(channel_nbr)
-                if channel_index + 1 == channel_nbr:
-                    channel_index = 0
-                else:
-                    channel_index += 1
-                
-                
+                decimal_values[channel_index].append(decimal_value)
+                channel_index = (channel_index + 1) % channel_nbr
                 index += 2
-                
-            return np.array(decimal_values)  # Convert the list to a NumPy array and return it
-        
-# Définition de y_data en dehors de la classe pour la rendre globale
+            return [np.array(vals) for vals in decimal_values]
 
-def update_plot(frame, daq, y_data):
-    # daq.connect()
+def update_plot(frame, daq, y_data, lines, scanlist, scale, sampling_rate):
+    now = time.time()
+    if update_plot.pause:
+        return lines
+
     status = daq.query('WAV:STAT?')
-    while "DATA" not in status:
-        status = daq.query('WAV:STAT?')
-    
-    daq.send_command('WAV:DATA?')
-    result = daq.read_raw()
-    values = daq.convert_raw_values(result, scale)
-    print(values)
-    y_data.extend(values[0])
-    
-    
-    
-    if len(y_data) > 50000:
-        y_data = y_data[-50000:]
+    if "DATA" in status:
+        daq.send_command('WAV:DATA?')
+        result = daq.read_raw()
+        values = daq.convert_raw_values(result, scale)
+        
+        for i, line in enumerate(lines):
+            y_data[i].extend(values[i])
+            if len(y_data[i]) > 100000:
+                y_data[i] = y_data[i][-100000:]
 
-    line.set_data(range(len(y_data)), y_data)
-    ax.relim()
-    ax.autoscale_view()
-    # dac.close()
-    return line,
+            # Convert the x-axis to milliseconds
+            x_data = np.arange(len(y_data[i])) / sampling_rate * 1000
+            line.set_data(x_data, y_data[i])
+        
+        ax.relim()
+        ax.autoscale_view()
+    end = time.time() - now
+    print(end)  
+
+    return lines
+
+update_plot.pause = False
+
+def on_pause(event):
+    update_plot.pause = not update_plot.pause
+    if update_plot.pause:
+        pause_button.label.set_text('Resume')
+    else:
+        pause_button.label.set_text('Pause')
 
 if __name__ == "__main__":
-    usb_address = "USB0::0x0957::0x0F18::TW50200512::0::INSTR"  # Remplacez par l'adresse USB réelle de votre DAC
+    usb_address = "USB0::0x0957::0x1118::TW47031015::0::INSTR"  # Replace with actual USB address
     dac = KeysightDAC(usb_address)
     data = []
+    lines = []
 
-    # try:
     dac.connect()
-    
-    # dac.connect()
-    
     print(dac.measure_output(101))
-    dac.define_sampling_rate(40000) #  500Ks/s
-    dac.define_sample_points(1000)
+    dac.define_sampling_rate(40000) #  40 Ks/s
+    dac.define_sample_points(20000)
     
     scanlist = [dac.ANALOG_CHANNEL_1, dac.ANALOG_CHANNEL_2, dac.ANALOG_CHANNEL_3, dac.ANALOG_CHANNEL_4, dac.ANALOG_CHANNEL_5, dac.ANALOG_CHANNEL_6]
     dac.configure_scanlist(scanlist)
@@ -205,83 +177,31 @@ if __name__ == "__main__":
     print(dac.get_sampling_points())
     print(dac.get_sampling_rate())
     
-    
     time.sleep(0.5)
-    dac.configure_output(dac.ANALOG_CHANNEL_1, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
-    dac.configure_output(dac.ANALOG_CHANNEL_2, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
-    dac.configure_output(dac.ANALOG_CHANNEL_3, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
-    dac.configure_output(dac.ANALOG_CHANNEL_4, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
-    dac.configure_output(dac.ANALOG_CHANNEL_5, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
-    dac.configure_output(dac.ANALOG_CHANNEL_6, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
+    for channel in scanlist:
+        dac.configure_output(channel, dac.VOLTAGE_RANGE_5V, dac.CHANNEL_UNIPOLAR_MODE)
 
-    
-    time.sleep(0.5)
-    dac.send_command('ROUT:CHAN:POL UNIP,(@101)')
-    print(dac.query('ROUT:CHAN:POL? (@101)'))
-    time.sleep(0.5)
-    dac.send_command('ROUT:CHAN:RANG 10,(@101)')  # define voltage range @+/-5V
-    scale = int(dac.query('ROUT:CHAN:RANG? (@101)'))
-    print(scale)
-    time.sleep(0.5)
     dac.send_command('RUN')
-    status = dac.query('WAV:STAT?')
     
-    while "DATA" not in status:
-        status = dac.query('WAV:STAT?')
-    # dac.close()
+    while "DATA" not in dac.query('WAV:STAT?'):
+        time.sleep(0.1)
+
     fig, ax = plt.subplots()
-    line, = ax.plot([], [], lw=2)
+    
+    for _ in scanlist:
+        line, = ax.plot([], [], lw=1)
+        lines.append(line)
+        data.append([])
+
     ax.grid()
 
-    ani = FuncAnimation(fig, update_plot, fargs=(dac, data), blit=False, interval=100)
+    # Add the pause button
+    ax_pause = plt.axes([0.81, 0.01, 0.1, 0.075])
+    pause_button = Button(ax_pause, 'Pause')
+    pause_button.on_clicked(on_pause)
+
+    sampling_rate = dac.get_sampling_rate()
+
+    ani = FuncAnimation(fig, update_plot, fargs=(dac, data, lines, scanlist, dac.VOLTAGE_RANGE_5V, sampling_rate), blit=False, interval=5)
     
     plt.show()
-
-
-        
-        # # dac.send_command('VOLT:RANG 5,(@101)') # define voltage range @+/-5V
-        # print(dac.query('ROUT:SCAN?'))
-        # time.sleep(0.5)
-        # # scale = int(dac.query('ROUT:CHAN:RANG? (@101)'))
-        # # print(scale)
-        # time.sleep(0.5)
-        # dac.send_command('RUN')
-        # status = dac.query('WAV:STAT?')
-        
-        # try:
-        #     next_frame = time.time()
-        #     status = dac.query('WAV:STAT?')
-        #     while "DATA" not in status:
-        #         status = dac.query('WAV:STAT?')
-                
-        #     now = time.time()
-        #     dac.send_command('WAV:DATA?')
-        #     result = dac.read_raw()
-        #     values = dac.convert_raw_values(result, dac.get_voltage_range(dac.ANALOG_CHANNEL_1))
-        #     print()
-        #     end = time.time() - now
-        #     print(values.size)
-        #     print(time.time() - next_frame)
-        #     print(end)  
-            
-        #       # Plot the values
-        #     plt.figure(figsize=(10, 5))
-            
-        #     plot_index = 0
-        #     while plot_index != len(values):
-        #         plt.plot(values[plot_index], marker='o', linestyle='-', label = "line {}".format(plot_index))
-        #         plot_index += 1
-        #     plt.title('Decimal Values')
-        #     plt.xlabel('Index')
-        #     plt.ylabel('Value')
-        #     plt.grid(True)
-        #     plt.show()
-                
-        # except KeyboardInterrupt:
-        #     dac.send_command('STOP')
-        #     dac.close()
-            
-
-    # finally:
-    #     dac.send_command('STOP')
-        # dac.close()
