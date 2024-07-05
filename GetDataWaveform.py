@@ -21,9 +21,7 @@ class LeCroyOscilloscope:
     def force(self):
         self.previous_state_before_force = self.get_current_trig_sel()
         # print("Trig was forced by changing the trig selectection. Previous state was : ", self.previous_state_before_force)
-        self.send_command('TRSE EDGE,SR,LINE,HT,OFF')
-        time.sleep(0.2)
-        self.arm()
+        self.send_command('TRMD STOP;ARM;FRTR')
         time.sleep(2)
         
     def restore_previous_trig_sel(self):
