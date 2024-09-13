@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 import threading
 import queue
-import csv
+# import matplotlib.style as mplstyle
+
+# mplstyle.use(['dark_background', 'ggplot', 'fast'])
 
 class KeysightDAC:
     ANALOG_CHANNEL_1 = 101
@@ -32,7 +34,7 @@ class KeysightDAC:
     
     CHANNEL_UNIPOLAR_MODE = 'UNIP'
     CHANNEL_BIPOLAR_MODE = 'BIP'
-    
+
     def __init__(self, usb_address):
         self.usb_address = usb_address
         self.resource_manager = pyvisa.ResourceManager()
@@ -40,14 +42,21 @@ class KeysightDAC:
         self.scanlist = None
 
     def connect(self):
-        self.instrument = self.resource_manager.open_resource(self.usb_address)
+        try:
+            self.instrument = self.resource_manager.open_resource(self.usb_address)
+        except Exception as e:
+            print(f"Failed to connect to the instrument: {e}")
 
     def send_command(self, command):
         self.instrument.write(command)
 
     def query(self, command):
-        return self.instrument.query(command)
-    
+        try:
+            return self.instrument.query(command)
+        except Exception as e:
+            print(f"Failed to query the instrument: {e}")
+            return ""
+
     def read_raw(self):
         return self.instrument.read_raw()
 
@@ -99,7 +108,6 @@ class KeysightDAC:
         byte_nbr = int(raw_values[2:10].decode())  # Get the number of bytes
         index = 10  # Start the index at 10
         channel_nbr = len(self.scanlist)
-        # vcd_data = ""
 
         if channel_nbr == 1:
             decimal_values = []
@@ -125,31 +133,7 @@ class KeysightDAC:
                 decimal_values[channel_index].append(decimal_value)
                 channel_index = (channel_index + 1) % channel_nbr
                 index += 2
-            
-                
             return [np.array(vals) for vals in decimal_values]
-        
-    def export_to_csv(self, filename, data):
-        """
-        Export data to CSV file.
-
-        Parameters:
-        - filename: Name of the CSV file to save.
-        - data: List of data arrays to export, each array representing data for a channel.
-        """
-        with open(filename, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['Time(ms)', 'Channel 1', 'Channel 2', 'Channel 3', '...'])  # Add headers
-
-            # Assuming all data arrays have the same length (as they should)
-            num_samples = len(data[0])
-            for i in range(num_samples):
-                row = [i / self.get_sampling_rate() * 1000]  # Time in milliseconds
-                for channel_data in data:
-                    row.append(channel_data[i])
-                writer.writerow(row)
-
-        print(f"Data exported to {filename}")
 
 class DataAcquisitionThread(threading.Thread):
     def __init__(self, daq, data_queue, scanlist, scale):
@@ -167,9 +151,8 @@ class DataAcquisitionThread(threading.Thread):
                 self.daq.send_command('WAV:DATA?')
                 result = self.daq.read_raw()
                 values = self.daq.convert_raw_values(result, self.scale)
-                # self.daq.export_to_csv(filename, values)
                 self.data_queue.put(values)
-            time.sleep(0.005)
+            time.sleep(0.001)
 
     def pause(self):
         self.daq.send_command('STOP')
@@ -185,44 +168,31 @@ class DataAcquisitionThread(threading.Thread):
         if "DATA" in self.daq.query('WAV:STAT?'):
             self.daq.send_command('WAV:DATA?')
             self.daq.read_raw()
-        
-        
-filename = 'data_export.csv'
-buffer_size = 200000
 
 def update_plot(frame, y_data, lines, data_queue, sampling_rate):
-    
     if update_plot.pause:
-        ax.relim()
-        ax.autoscale_view()
+        for ax in axs:
+            ax.relim()
+            ax.autoscale_view()
         frame.canvas.draw()
         frame.canvas.flush_events()
         return lines
-    else:
-        if not data_queue.empty():
-            while not data_queue.empty():
-                values = data_queue.get()
-                # print(values)
-                for i, line in enumerate(lines):
-                    
-                    y_data[i].extend(values[i])
-                        
-                    if len(y_data[i]) > buffer_size:
-                        y_data[i] = y_data[i][-buffer_size:]
-        
-                    # Convert the x-axis to milliseconds
-                    x_data = np.arange(len(y_data[i])) / sampling_rate * 1000
-                    line.set_data(x_data, y_data[i])
-                    
-                    
 
-            
-        else:
+    if not data_queue.empty():
+        while not data_queue.empty():
+            values = data_queue.get()
+            for i, line in enumerate(lines):
+                y_data[i].extend(values[i])
+                if len(y_data[i]) > 40000:
+                    y_data[i] = y_data[i][-40000:]
+                x_data = np.arange(len(y_data[i])) / sampling_rate * 1000
+                line.set_data(x_data, y_data[i])
+    else:
+        for ax in axs:
             ax.relim()
             ax.autoscale_view()
-            frame.canvas.draw()
-            frame.canvas.flush_events()
-            # frame.canvas.blit()
+        frame.canvas.draw()
+        frame.canvas.flush_events()
 
     return lines
 
@@ -237,7 +207,7 @@ def on_pause(event):
         pause_button.label.set_text('Pause')
         daq_thread.resume()
 
-signal_name = ["5V", "3V3", "2V7", "1V8", "1V2", "1V2_S", "VUSB_S", "1V2_CAM", "1V8_CAM", "3V3_PDCD", "VUSB"]
+signal_name = ["5V", "3V3", "2V7", "1V8", "1V2", "1V2_S", "VUSB_S", "1V2_CAM", "1V8_CAM", "3V3_PDCD", "VUSB_POWER"]
 
 if __name__ == "__main__":
     usb_address = "USB0::0x0957::0x1118::TW47031015::0::INSTR"  # Replace with actual USB address
@@ -245,17 +215,12 @@ if __name__ == "__main__":
     data = []
     lines = []
     data_queue = queue.Queue()
-    sampling_rate = 40000
 
     dac.connect()
-    # print(dac.measure_output(101))
-    dac.define_sampling_rate(sampling_rate)  # Max with 10 channels
-    dac.define_sample_points(20000)
+    dac.define_sampling_rate(8000)  # smooth display with 10 channels
+    dac.define_sample_points(4000)
     
-    # dac.define_sampling_rate(2000)  # smooth display with 10 channels
-    # dac.define_sample_points(300)
-    
-    scanlist = [dac.ANALOG_CHANNEL_1, dac.ANALOG_CHANNEL_2, dac.ANALOG_CHANNEL_3, dac.ANALOG_CHANNEL_4, dac.ANALOG_CHANNEL_5, dac.ANALOG_CHANNEL_6, dac.ANALOG_CHANNEL_7, dac.ANALOG_CHANNEL_8, dac.ANALOG_CHANNEL_9, dac.ANALOG_CHANNEL_10, dac.ANALOG_CHANNEL_11]
+    scanlist = [dac.ANALOG_CHANNEL_1, dac.ANALOG_CHANNEL_2, dac.ANALOG_CHANNEL_3, dac.ANALOG_CHANNEL_4, dac.ANALOG_CHANNEL_5, dac.ANALOG_CHANNEL_6, dac.ANALOG_CHANNEL_7, dac.ANALOG_CHANNEL_8, dac.ANALOG_CHANNEL_9, dac.ANALOG_CHANNEL_10,  dac.ANALOG_CHANNEL_11]
     dac.configure_scanlist(scanlist)
     
     print(dac.get_sampling_points())
@@ -275,41 +240,39 @@ if __name__ == "__main__":
     daq_thread = DataAcquisitionThread(dac, data_queue, scanlist, dac.VOLTAGE_RANGE_10V)
     daq_thread.start()
 
-    fig, ax = plt.subplots()
+    fig, axs = plt.subplots(6, 2, figsize=(15, 10))
+    axs = axs.flatten()
     
     for idx, channel in enumerate(scanlist):
-        line, = ax.plot([], [], lw=1, label=f"{signal_name[idx]}")
+        line, = axs[idx].plot([], [], lw=1, label=f"{signal_name[idx]}")
+        axs[idx].set_title(f"{signal_name[idx]}")
+        axs[idx].grid()
         lines.append(line)
         data.append([])
 
-    ax.grid()
-    ax.set(xlim=(0, (buffer_size / sampling_rate) * 1000))
-    ax.legend(loc='upper right')
+    plt.tight_layout()
+
 
     # Add the pause button
-    ax_pause = plt.axes([0.81, 0.01, 0.05, 0.025])
+    ax_pause = plt.axes([0.85, 0.005, 0.025, 0.02])
     pause_button = Button(ax_pause, 'Pause')
     pause_button.on_clicked(on_pause)
+    
     plt.rcParams['figure.dpi'] = 600
     plt.rcParams['savefig.dpi'] = 600
-
-    # ani = FuncAnimation(fig, update_plot, fargs=(data, lines, data_queue, sampling_rate), blit=False, interval=5)
-    # plt.legend(lines)
     plt.show()
         
     try:
         while True:
-            # print('running')
-            # time.sleep(0.005)
-            # if not data_queue.empty():
-            # now = time.time()
+            time.sleep(0.005)
+            now = time.time()
             lines = update_plot(fig, data, lines, data_queue, sampling_rate)
-            # end = time.time() - now
+            end = time.time() - now
             print(data_queue.qsize())
-            # print(end)  
-    except BaseException as e:
-        print(e)            
-    except KeyboardInterrupt():
+            print(end)  
+    except BaseException:
+        print('error')            
+    except KeyboardInterrupt:
         daq_thread.stop()
         daq_thread.join()
         dac.close()

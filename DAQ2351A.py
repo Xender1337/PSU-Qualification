@@ -1,4 +1,4 @@
-import pyvisa
+# import pyvisa
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -99,6 +99,7 @@ class KeysightDAC:
         # print(raw_values)
         index = 10  # Start the index at 10
         channel_nbr = len(self.scanlist)
+        print(raw_values)
         
         if channel_nbr == 1:
             decimal_values = [] # Initialize an empty list to store the decimal values
@@ -168,8 +169,8 @@ if __name__ == "__main__":
         dac.connect()
         
         print(dac.measure_output(101))
-        dac.define_sampling_rate(12000) #  500Ks/s
-        dac.define_sample_points(10000)
+        dac.define_sampling_rate(120) #  500Ks/s
+        dac.define_sample_points(10)
         
         scanlist = [dac.ANALOG_CHANNEL_1, dac.ANALOG_CHANNEL_2, dac.ANALOG_CHANNEL_3, dac.ANALOG_CHANNEL_4, dac.ANALOG_CHANNEL_5, dac.ANALOG_CHANNEL_6]
         dac.configure_scanlist(scanlist)
